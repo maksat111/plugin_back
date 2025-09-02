@@ -1,48 +1,77 @@
-const { Op } = require("sequelize");
 const db = require("../models/index");
 const words = require("../constants/file.json");
 
+const { Op, fn, col, where: sequelizeWhere, literal } = require("sequelize");
+
 const getAll = async (req, res) => {
   try {
-    let { name } = req.body;
-    const page = parseInt(req.query.page) || 1; // Get page from query params, default to 1
-    const limit = parseInt(req.query.limit) || 50; // Get limit from query params, default to 10
-    const offset = (page - 1) * limit; // Calculate offset
+    const { name, name_en, name_ru, description } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
 
-    name =
-      name && name?.length > 0
-        ? {
-            [Op.and]: [{ name: { [Op.iLike]: `%${name}%` } }],
-          }
-        : null;
+    const whereFilter = [];
+    const similarityFields = [];
+    const hasPgTrgm = true; // set false if pg_trgm not installed
 
-    const whereFilter = {
-      [Op.and]: [name].filter(Boolean),
+    const addFilter = (field, value) => {
+      if (value?.trim()) {
+        const trimmed = value.trim();
+        if (hasPgTrgm) {
+          // fuzzy search with pg_trgm
+          whereFilter.push(
+            sequelizeWhere(fn("similarity", col(field), trimmed), {
+              [Op.gt]: 0.3,
+            })
+          );
+          similarityFields.push(fn("similarity", col(field), trimmed));
+        } else {
+          // fallback: simple substring search
+          whereFilter.push({ [field]: { [Op.iLike]: `%${trimmed}%` } });
+        }
+      }
     };
 
+    addFilter("name", name);
+    addFilter("name_en", name_en);
+    addFilter("name_ru", name_ru);
+    addFilter("description", description);
+
+    let attributes = { include: [] };
+    let order = [["createdAt", "DESC"]];
+
+    if (hasPgTrgm && similarityFields.length) {
+      attributes.include.push([
+        fn("GREATEST", ...similarityFields),
+        "similarity_score",
+      ]);
+      order = [[literal('"similarity_score"'), "DESC"]];
+    }
+
     const data = await db.Word.findAll({
-      where: whereFilter,
-      order: [["createdAt", "DESC"]],
+      where: whereFilter.length ? { [Op.and]: whereFilter } : undefined,
+      attributes,
+      order,
       limit,
       offset,
     });
 
     res.status(200).json({ success: 1, data });
   } catch (err) {
-    res.status(500).json({
-      success: 0,
-      msg: err.message,
-    });
+    console.error(err);
+    res.status(500).json({ success: 0, msg: err.message });
   }
 };
 
 const create = async (req, res) => {
   try {
-    const { name, is_probable } = req.body;
+    const { name, name_en, name_ru, desction } = req.body;
 
     const created = await db.Word.create({
       name,
-      is_probable,
+      name_en,
+      name_ru,
+      desction,
     });
 
     res.status(201).json({
@@ -119,7 +148,6 @@ const Sync = async (req, res) => {
   try {
     const formattedWords = words.map((item) => ({
       name: item.word,
-      is_probable: false,
     }));
 
     await db.Word.bulkCreate(formattedWords);

@@ -14,7 +14,6 @@ module.exports = (sequelize, DataTypes) => {
   Word.init(
     {
       name: DataTypes.STRING,
-      is_probable: DataTypes.BOOLEAN,
     },
     {
       sequelize,
