@@ -23,8 +23,6 @@ const io = new Server(server, {
   },
 });
 
-console.log(db.Word);
-
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
@@ -106,11 +104,6 @@ const createFolder = (path) => {
 };
 
 createFolder("uploads");
-
-// Your routes here
-// app.get("/uploads/:file", (req, res) => {
-//   res.sendFile(req.params.file);
-// });
 
 // ------------------------------------------------------ Listening server ---------------------------------------------//
 server.listen(PORT, () => console.log(`Listening on port ${PORT}`));

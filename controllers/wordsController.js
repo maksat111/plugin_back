@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const db = require("../models/index");
+const words = require("../constants/file.json");
 
 const getAll = async (req, res) => {
   try {
@@ -114,7 +115,26 @@ const update = async (req, res) => {
   }
 };
 
+const Sync = async (req, res) => {
+  try {
+    const formattedWords = words.map((item) => ({
+      name: item.word,
+      is_probable: false,
+    }));
+
+    await db.Word.bulkCreate(formattedWords);
+
+    res
+      .status(200)
+      .json({ success: true, msg: "Words inserted successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: err.message });
+  }
+};
+
 exports.create = create;
 exports.Delete = Delete;
 exports.update = update;
 exports.getAll = getAll;
+exports.Sync = Sync;

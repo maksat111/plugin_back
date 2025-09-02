@@ -9,6 +9,7 @@ const wordsController = require("../controllers/wordsController");
 
 //---------------------------------------------- Word Routes --------------------------------------------------- //
 router.get("/word/all", wordsController.getAll);
+router.get("/word/sync", wordsController.Sync);
 router.post("/word/create", wordsController.create);
 router.delete("/word/delete/:id", wordsController.Delete);
 router.patch("/word/update/:id", wordsController.update);
